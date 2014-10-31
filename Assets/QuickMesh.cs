@@ -43,5 +43,28 @@ namespace QuickMesh
 			q.Features.Add (feature);
 			return q;
 		}
+
+		public Mesh Finish(){
+			Mesh m = new Mesh ();
+			List<int> triangles = new List<int> ();
+			List<Vector3> vertices = new List<Vector3> ();
+			for (int i=0; i<Faces.Count; i++) {
+				int[] face = facelist[i];
+				int first = vertices.Count;
+				for (int j=0; j<face.Length;j++){
+					vertices.Add(verts[face[j]]);
+				}
+				for (int j=0; j<face.Length-2; j++) {
+					
+					triangles.Add(first);
+					triangles.Add(first+j+1);
+					triangles.Add(first+j+2);
+				}
+			}
+			m.vertices = vertices.ToArray();
+			m.triangles = triangles.ToArray ();	
+			m.RecalculateNormals();
+		}
+	}
 }
 
