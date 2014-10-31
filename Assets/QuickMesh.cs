@@ -12,58 +12,54 @@ using System.Collections.Generic;
 using UnityEngine;
 namespace QuickMesh
 {
-		public class QuickMesh
+		public class Selection
 		{
-		private List<Vertex> Vertices = new List<Vertex>();
 		private List<Face> Faces = new List<Face>();
-		public List<Feature> Features = new List<Feature>();
-				public QuickMesh ()
+		public List<Face> Selected = new List<Face>();
+				public Selection ()
 				{
 				}
 
-		public QuickMesh Make(){
-			QuickMesh q = new QuickMesh ();
-			q.Vertices = this.Vertices;
-			q.Faces = this.Faces;
+		public Selection Make(){
+			Selection s = new Selection ();
+			s.Faces = this.Faces;
 		}
 
-		public QuickMesh Circle(int vertexCount){
-			QuickMesh q = Make ();
+		public Selection Circle(int vertexCount){
+			Selection s = Make ();
 			float arcLength = Mathf.PI * 2 / vertexCount;
 			Face face = new Face();
 			for (int i = 0; i < vertexCount; i++){
 				Vertex vertex = new Vertex();
 				vertex.Position = Vector3(Mathf.Cos(-i*arcLength), Mathf.Sin(-i*arcLength), 0);
 				face.Vertices.Add(vertex);
-				Vertices.Add(vertex);
 			}
-			Feature feature = new Feature();
-			feature.Faces.Add (face);
 			Faces.Add(face);
-			q.Features.Add (feature);
-			return q;
+			s.Selected.Add (face);
+			return s;
 		}
 
 		public Mesh Finish(){
 			Mesh m = new Mesh ();
 			List<int> triangles = new List<int> ();
 			List<Vector3> vertices = new List<Vector3> ();
-			for (int i=0; i<Faces.Count; i++) {
-				int[] face = facelist[i];
+
+			foreach (Face face in Faces) {
 				int first = vertices.Count;
-				for (int j=0; j<face.Length;j++){
-					vertices.Add(verts[face[j]]);
+				for (int i=0; i<face.Vertices.Count;i++){
+					vertices.Add(face.Vertices[i].Position);
 				}
-				for (int j=0; j<face.Length-2; j++) {
+				for (int i=0; i<face.Vertices.Count-2; i++) {
 					
 					triangles.Add(first);
-					triangles.Add(first+j+1);
-					triangles.Add(first+j+2);
+					triangles.Add(first+i+1);
+					triangles.Add(first+i+2);
 				}
 			}
 			m.vertices = vertices.ToArray();
 			m.triangles = triangles.ToArray ();	
 			m.RecalculateNormals();
+			return m;
 		}
 	}
 }
