@@ -15,6 +15,12 @@ namespace QuickMesh
 		public class Vertex
 		{
 			public Vector3 Position;
+			public Vertex(Vector3 position){
+				Position = position;
+			}
+			public Vertex(float x, float y, float z){
+				Position = new Vector3 (x, y, z);
+			}
 		}
 }
 

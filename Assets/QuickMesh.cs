@@ -16,6 +16,8 @@ namespace QuickMesh
 		{
 		private List<Face> Faces = new List<Face>();
 		public List<Face> Selected = new List<Face>();
+		public Dictionary<String, Dictionary<Face,String>> Attributes = new Dictionary<String, Dictionary<Face,String>>();
+
 				public Selection ()
 				{
 				}
@@ -23,6 +25,8 @@ namespace QuickMesh
 		public Selection Make(){
 			Selection s = new Selection ();
 			s.Faces = this.Faces;
+			s.Attributes = this.Attributes;
+			return s;
 		}
 
 		public Selection Circle(int vertexCount){
@@ -30,12 +34,74 @@ namespace QuickMesh
 			float arcLength = Mathf.PI * 2 / vertexCount;
 			Face face = new Face();
 			for (int i = 0; i < vertexCount; i++){
-				Vertex vertex = new Vertex();
-				vertex.Position = Vector3(Mathf.Cos(-i*arcLength), Mathf.Sin(-i*arcLength), 0);
+				Vertex vertex = new Vertex(Mathf.Cos(-i*arcLength), Mathf.Sin(-i*arcLength), 0);
 				face.Vertices.Add(vertex);
 			}
 			Faces.Add(face);
 			s.Selected.Add (face);
+			return s;
+		}
+
+		public delegate void Mapper(Selection selection, Face face);
+
+		public String Attr(Face face, String key){
+			if (!Attributes.ContainsKey (key)) {
+				return null;
+			}
+			var dict = Attributes [key];
+			if (!dict.ContainsKey (face)) {
+				return null;
+			}
+			return dict [face];
+		}
+
+		public void Attr(Face face, String key, String val){
+
+			if (!Attributes.ContainsKey(key))
+			{
+				Attributes[key]= new Dictionary<Face, string> ();
+			}
+			Attributes[key] [face] = val;
+		}
+
+		public Selection Extrude(float distance){
+			return Each ((s,f) => {
+				Attr (f,"hidden","true");
+				Vector3 extrusion = f.Normal()*distance;
+
+				Face cap = new Face();
+				Attr (cap, "cap","true");
+				cap.Orientation = f.Orientation;
+				int vertexCount = f.Vertices.Count;
+
+				for(int i=0;i<vertexCount;i++){
+					cap.Vertices.Add (new Vertex(f.Vertices[i].Position+extrusion));
+				}
+
+				for(int i=0;i<vertexCount;i++){
+					Face side = new Face();
+					Attr (side,"side",i.ToString());
+
+					side.Vertices.Add (f.Vertices[(i+1)%vertexCount]);
+					side.Vertices.Add (cap.Vertices[(i+1)%vertexCount]);
+					side.Vertices.Add (cap.Vertices[i]);
+					side.Vertices.Add (f.Vertices[i]);
+
+
+					side.Orientation = Vector3.Cross(side.Normal(), extrusion).normalized;
+
+					s.Faces.Add (side);
+				}
+
+				s.Faces.Add(cap);
+			});
+		}
+
+		public Selection Each(Mapper m){
+			Selection s = Make ();
+			foreach (Face face in Selected) {
+				m(s,face);
+			}
 			return s;
 		}
 
@@ -45,6 +111,8 @@ namespace QuickMesh
 			List<Vector3> vertices = new List<Vector3> ();
 
 			foreach (Face face in Faces) {
+				Debug.Log (Attr (face,"hidden"));
+				if(Attr (face,"hidden")!="true"){
 				int first = vertices.Count;
 				for (int i=0; i<face.Vertices.Count;i++){
 					vertices.Add(face.Vertices[i].Position);
@@ -54,6 +122,7 @@ namespace QuickMesh
 					triangles.Add(first);
 					triangles.Add(first+i+1);
 					triangles.Add(first+i+2);
+				}
 				}
 			}
 			m.vertices = vertices.ToArray();
