@@ -90,11 +90,16 @@ namespace QuickMesh
 
 					side.Orientation = Vector3.Cross(side.Normal(), extrusion).normalized;
 
-					s.Faces.Add (side);
+					s.AddSelected (side);
 				}
 
-				s.Faces.Add(cap);
+				s.AddSelected(cap);
 			});
+		}
+
+		public void AddSelected(Face face){
+			Faces.Add (face);
+			Selected.Add (face);
 		}
 
 		public Selection Each(Mapper m){
