@@ -16,7 +16,7 @@ public class Generate : MonoBehaviour {
 		MeshFilter meshFilter = (MeshFilter)plane.AddComponent(typeof(MeshFilter));
 
 		Selection s = new Selection ();
-		meshFilter.mesh = s.Circle (5).Extrude(2).Filter ("side=1","cap").Extrude (1).Finish ();
+		meshFilter.mesh = s.Circle (5).Extrude(2).Subdivide().Finish ();
 
 		MeshRenderer renderer = plane.AddComponent(typeof(MeshRenderer)) as MeshRenderer;
 		renderer.sharedMaterial = mat;
