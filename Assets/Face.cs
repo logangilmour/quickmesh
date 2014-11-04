@@ -19,6 +19,14 @@ namespace QuickMesh
 				Vector3 p2 = Vertices[2].Position;
 				return Vector3.Cross((p2 - p1), (p0 - p1)).normalized;
 			}
+
+		public Vector3 Barycenter(){
+						var barycenter = Vector3.zero;
+						foreach (Vertex v in Vertices) {
+								barycenter += v.Position;
+						}
+						return barycenter / Vertices.Count;
+				}
 		
 	}
 }
