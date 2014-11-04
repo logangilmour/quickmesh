@@ -97,6 +97,25 @@ namespace QuickMesh
 			});
 		}
 
+		public Selection Filter(params String[] filters){
+			return Each ((s,f)=>{
+				foreach(String filter in filters){
+
+					if(filter.Contains("=")){
+						String[] keyval = filter.Split('=');
+						if(Attributes.ContainsKey(keyval[0]) 
+						   && Attributes[keyval[0]].ContainsKey(f)
+						   && Attributes[keyval[0]][f]==keyval[1]){
+							s.Selected.Add (f);
+						}
+					}else if(Attributes.ContainsKey(filter) 
+					         && Attributes[filter].ContainsKey(f)){
+						s.Selected.Add(f);
+					}
+				}
+			});
+		}
+
 		public void AddSelected(Face face){
 			Faces.Add (face);
 			Selected.Add (face);
