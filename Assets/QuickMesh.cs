@@ -89,8 +89,10 @@ namespace QuickMesh
 		}
 
 		public Selection Subdivide(){
+			var t = Time.time;
+			var edgeVertices = new EdgeLabelSet<Vertex>();
+
 			return Each((s,f)=>{
-				var edgeVertices = new EdgeLabelSet<Vertex>();
 				Attr(f,"hidden","true");
 				int vertexCount = f.Vertices.Count;
 				List<Vertex> edgeRing = new List<Vertex>();
@@ -121,6 +123,70 @@ namespace QuickMesh
 					s.AddSelected(sub);
 				}
 			});
+
+			Debug.Log ("Subdivided in " + (Time.time - t));
+		}
+
+		public Selection Smooth(int iterations, float factor){
+			var t = Time.time;
+			var edges = new EdgeLabelSet<int>();
+			var tempVertices = new Dictionary<Vertex,Vector3> ();
+
+			var adjacency = new Adjacency ();
+
+			foreach (Face f in Selected) {
+				int vertexCount = f.Vertices.Count;
+
+				for(int i = 0; i< vertexCount; i++){
+					Vertex current = f.Vertices[i];
+					Vertex next = f.Vertices[(i + 1) % vertexCount];
+
+					adjacency.Add (current,next);
+
+					edges.Add (current,next,edges.Label(current,next)+1);
+					tempVertices[current] = current.Position;
+				}
+			}
+
+			var edgeVertices = new HashSet<Vertex> ();
+			int tot = 0;
+			int edge = 0;
+			foreach (var label in edges) {
+				tot++;
+				if(label.Label<2){
+					edge++;
+					edgeVertices.Add (label.A);	
+					edgeVertices.Add (label.B);
+				}
+			}
+
+			for(int i=0; i<iterations; i++){
+				foreach(var kp in adjacency.Adjacent){
+
+					var a = kp.Key;
+					if(edgeVertices.Contains(a)){continue;}
+					Vector3 bary = Vector3.zero;
+					float total = 0;
+					int ncount=0;
+					foreach(var b in kp.Value){
+						ncount++;
+						Vector3 delta = b.Position - tempVertices[a];
+						float weight = 1f / Vector3.Distance(tempVertices[a], b.Position);
+
+						bary+= (delta * weight);
+
+						total += weight;
+					}
+					
+					a.Position = tempVertices[a] + (bary/total) * factor;
+				}
+				foreach(var v in adjacency.Adjacent.Keys){
+					tempVertices[v]=v.Position;
+				}
+			}
+			Debug.Log ("Smoothed in " + (Time.time - t));
+
+				return this;
 		}
 	
 		public Selection Filter(params String[] filters){
@@ -161,7 +227,6 @@ namespace QuickMesh
 			List<Vector3> vertices = new List<Vector3> ();
 
 			foreach (Face face in Faces) {
-				Debug.Log (Attr (face,"hidden"));
 				if(Attr (face,"hidden")!="true"){
 				int first = vertices.Count;
 				for (int i=0; i<face.Vertices.Count;i++){
