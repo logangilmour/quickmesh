@@ -89,7 +89,6 @@ namespace QuickMesh
 		}
 
 		public Selection Subdivide(){
-			var t = Time.time;
 			var edgeVertices = new EdgeLabelSet<Vertex>();
 
 			return Each((s,f)=>{
@@ -124,39 +123,18 @@ namespace QuickMesh
 				}
 			});
 
-			Debug.Log ("Subdivided in " + (Time.time - t));
 		}
 
 		public Selection Smooth(int iterations, float factor){
-			var t = Time.time;
-			var edges = new EdgeLabelSet<int>();
+			var edgeVertices = new EdgeFinder (Selected).EdgeVertices ();
 			var tempVertices = new Dictionary<Vertex,Vector3> ();
 
-			var adjacency = new Adjacency ();
+			var adjacency = new AdjacencyList (Selected);
+
 
 			foreach (Face f in Selected) {
-				int vertexCount = f.Vertices.Count;
-
-				for(int i = 0; i< vertexCount; i++){
-					Vertex current = f.Vertices[i];
-					Vertex next = f.Vertices[(i + 1) % vertexCount];
-
-					adjacency.Add (current,next);
-
-					edges.Add (current,next,edges.Label(current,next)+1);
-					tempVertices[current] = current.Position;
-				}
-			}
-
-			var edgeVertices = new HashSet<Vertex> ();
-			int tot = 0;
-			int edge = 0;
-			foreach (var label in edges) {
-				tot++;
-				if(label.Label<2){
-					edge++;
-					edgeVertices.Add (label.A);	
-					edgeVertices.Add (label.B);
+				foreach(var v in f.Vertices){
+					tempVertices[v] = v.Position;
 				}
 			}
 
@@ -184,7 +162,6 @@ namespace QuickMesh
 					tempVertices[v]=v.Position;
 				}
 			}
-			Debug.Log ("Smoothed in " + (Time.time - t));
 
 				return this;
 		}
@@ -206,6 +183,38 @@ namespace QuickMesh
 					}
 				}
 			});
+		}
+
+		public Selection Inflate(float ammount){
+			var vertexNormals = new Dictionary<Vertex,List<Vector3>> ();
+			var edgeVertices = new EdgeFinder (Selected).EdgeVertices ();
+
+
+			foreach (Face face in Selected){
+				var normal = face.Normal();
+
+				foreach (Vertex v in face.Vertices){
+					if(!vertexNormals.ContainsKey(v)){
+						vertexNormals[v]=new List<Vector3>();
+					}
+					vertexNormals[v].Add (normal);
+				}
+			}
+			foreach (var kp in vertexNormals) {
+				Vertex v = kp.Key;
+				if(edgeVertices.Contains(v)){continue;}
+
+				var normal = Vector3.zero;
+				foreach(var n in kp.Value){
+					normal+=n;
+				}
+				v.Position+=ammount*normal.normalized;
+			}
+			return this;
+		}
+
+		public Selection Transform(Matrix4x4 transformation){
+
 		}
 
 		public void AddSelected(Face face){

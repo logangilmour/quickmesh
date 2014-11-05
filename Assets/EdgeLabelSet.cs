@@ -14,7 +14,7 @@ namespace QuickMesh
 	{
 
 
-		private Dictionary<Vertex,Dictionary<Vertex,T>> Labels = new Dictionary<Vertex,Dictionary<Vertex,T>>();
+		protected Dictionary<Vertex,Dictionary<Vertex,T>> Labels = new Dictionary<Vertex,Dictionary<Vertex,T>>();
 				public EdgeLabelSet ()
 				{
 				

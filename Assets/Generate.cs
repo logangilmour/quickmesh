@@ -17,7 +17,7 @@ public class Generate : MonoBehaviour {
 		Selection s = new Selection ().Circle(4).Extrude (2);
 
 		for (int i=0; i<3; i++)
-						s = s.Subdivide ().Smooth (5, 0.5f);
+						s = s.Subdivide ().Smooth (5, 0.5f).Inflate(0.3f);
 
 		meshFilter.mesh = s.Finish ();
 
