@@ -58,12 +58,21 @@ namespace QuickMesh
 			Attributes[key] [face] = val;
 		}
 
+		public Selection Attr(string key, string value){
+			foreach (Face face in Selected) {
+				Attr (face,key,value);
+			}
+			return this;
+		}
+
 		public Selection Extrude(float distance){
 			return Each ((s,f) => {
-				Attr (f,"hidden","true");
+				f.Visible=false;
+
 				Vector3 extrusion = f.Normal()*distance;
 
-				Face cap = new Face();
+				Face cap = f.CloneProperties();
+
 				Attr (cap, "cap","true");
 				cap.Orientation = f.Orientation;
 				int vertexCount = f.Vertices.Count;
@@ -73,7 +82,7 @@ namespace QuickMesh
 				}
 
 				for(int i=0;i<vertexCount;i++){
-					Face side = new Face();
+					Face side = f.CloneProperties();
 					Attr (side,"side",i.ToString());
 
 					side.Vertices.Add (f.Vertices[(i+1)%vertexCount]);
@@ -95,7 +104,7 @@ namespace QuickMesh
 			var edgeVertices = new EdgeLabelSet<Vertex>();
 
 			return Each((s,f)=>{
-				Attr(f,"hidden","true");
+				f.Visible=false;
 				int vertexCount = f.Vertices.Count;
 				List<Vertex> edgeRing = new List<Vertex>();
 
@@ -116,7 +125,7 @@ namespace QuickMesh
 
 				int count = edgeRing.Count;
 				for (int i = 0; i < count; i += 2){
-					Face sub = new Face();
+					Face sub = f.CloneProperties();
 					sub.Orientation = f.Orientation;
 					sub.Vertices.Add(facePoint);
 					sub.Vertices.Add(edgeRing[(i + count - 1) % count]);
@@ -324,35 +333,110 @@ namespace QuickMesh
 		public Selection Each(Mapper m){
 			Selection s = Make ();
 			foreach (Face face in Selected) {
-				if(Attr (face,"hidden")!="true"){
+				if(face.Visible){
 					m(s,face);
 				}
 			}
 			return s;
 		}
 
+
+		public Selection SmoothingGroup(int group){
+			foreach(Face f in Selected){
+				f.SmoothingGroup = group;
+			}
+			return this;
+		}
+
+		public Selection Color(Color32 color){
+			foreach(Face f in Selected){
+				f.Color = color;
+			}
+			return this;
+		}
+
+		public Selection Hide(){
+						foreach (Face f in Selected) {
+								f.Visible = false;
+						}
+						return this;
+				}
+		public Selection Show(){
+						foreach (Face f in Selected) {
+								f.Visible = true;
+						}
+						return this;
+				}
+		public Selection MeshGroup(int group){
+						foreach (Face f in Selected) {
+								f.MeshGroup = group;
+						}
+						return this;
+				}
+
 		public Mesh Finish(){
+
+
 			Mesh m = new Mesh ();
 			List<int> triangles = new List<int> ();
 			List<Vector3> vertices = new List<Vector3> ();
+			var smoothingGroups = new Dictionary<int,Dictionary<Vertex,int>> ();
+			int reused = 0;
+			int newvert = 0;
+			int newgroups = 0;
+
+
 
 			foreach (Face face in Faces) {
-				if(Attr (face,"hidden")!="true"){
-				int first = vertices.Count;
-				for (int i=0; i<face.Vertices.Count;i++){
-					vertices.Add(face.Vertices[i].Position);
-				}
-				for (int i=0; i<face.Vertices.Count-2; i++) {
+
+				if(face.Visible){
+					int newIndex = vertices.Count;
+					var smoothing = face.SmoothingGroup;
+					List<int> indices = new List<int>();
+
+					foreach(Vertex v in face.Vertices){
+						if(smoothing!=0){
+							if(smoothingGroups.ContainsKey(smoothing)){
+								if(smoothingGroups[smoothing].ContainsKey(v)){
+									indices.Add(smoothingGroups[smoothing][v]);
+									reused++;
+								}else{
+									smoothingGroups[smoothing][v]=newIndex;
+									indices.Add (newIndex);
+									vertices.Add(v.Position);
+									newIndex++;
+									newvert++;
+								}
+							}else{
+								smoothingGroups[smoothing]=new Dictionary<Vertex,int>();
+								smoothingGroups[smoothing][v]=newIndex;
+								indices.Add (newIndex);
+								vertices.Add(v.Position);
+								newIndex++;
+								newgroups++;
+							}
+						}else{
+						indices.Add (newIndex);
+						vertices.Add(v.Position);
+						newIndex++;
+						}
+					}
+					for (int i=0; i<indices.Count-2; i++) {
 					
-					triangles.Add(first);
-					triangles.Add(first+i+1);
-					triangles.Add(first+i+2);
-				}
+						triangles.Add(indices[0]);
+						triangles.Add(indices[i+1]);
+						triangles.Add(indices[i+2]);
+					}
 				}
 			}
+			Debug.Log ("Reused: " + reused + ", New Verts: " + newvert + ", New Group: " + newgroups);
 			m.vertices = vertices.ToArray();
 			m.triangles = triangles.ToArray ();	
-			m.RecalculateNormals();
+			m.RecalculateNormals ();
+			m.Optimize ();
+
+			Debug.Log ("Verts: "+vertices.Count);
+
 			return m;
 		}
 	}

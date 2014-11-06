@@ -14,17 +14,21 @@ public class Generate : MonoBehaviour {
 
 		MeshFilter meshFilter = (MeshFilter)plane.AddComponent(typeof(MeshFilter));
 
-		Selection s = new Selection ().Circle (4).Rotate (-90,0,0);
+		Selection s = new Selection ().Circle (4).SmoothingGroup(1).Rotate (-90,0,0);
 		float scale = 1;
-		for (int i=0; i<3; i++) {
+
+		for (int i=0; i<4; i++) {
 			
-			s = s.Extrude (3*scale).Keep("cap").Scale (0.5f).Extrude (scale).Filter ("cap").Extrude (1*scale).Keep ("cap").Rotate (-30,0,0).Extrude(1*scale).Keep("cap").Rotate(-30,0,0);
+			s = s.Extrude(3*scale).Keep("cap").Scale (0.5f).Extrude (scale).Filter ("cap").Extrude (1*scale).Keep ("cap").Rotate (-30,0,0).Extrude(1*scale).Keep("cap").Rotate(-30,0,0);
 			scale = scale*0.5f;
 		}
-
 		s = s.SelectAll ();
+		s.Keep ("side=0").SmoothingGroup (1);
+		s.Keep ("side=1").SmoothingGroup (2);
+		s.Keep ("side=2").SmoothingGroup (3);
+		s.Keep ("side=3").SmoothingGroup (4);
 
-		//for (int i=0; i<2; i++) s = s.Subdivide ().Smooth (5, 0.5f).Inflate(0.1f);
+		for (int i=0; i<1; i++) s = s.Subdivide ().Smooth (5, 0.5f).Inflate(0.1f);
 						
 
 
