@@ -9,9 +9,9 @@ namespace QuickMesh
 			{
 			}
 
-			public AdjacencyList(List<Face> faces)
+			public AdjacencyList(Selection selection)
 			{
-				AddAll (faces);
+				AddAll (selection);
 			}
 
 		public void Add(Vertex a, Vertex b){
@@ -35,10 +35,10 @@ namespace QuickMesh
 			}
 		}
 
-		public void AddAll(List<Face> faces){
-			foreach(Face f in faces){
-				Add (f);
-			}
+		public void AddAll(Selection selection){
+			selection.Each ((s,f) => {
+								Add (f);
+						});
 		}
 			
 	}

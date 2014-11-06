@@ -25,10 +25,13 @@ namespace QuickMesh
 			float arcLength = Mathf.PI * 2 / vertexCount;
 			Face face = new Face();
 			for (int i = 0; i < vertexCount; i++){
-				Vertex vertex = new Vertex(Mathf.Cos(-i*arcLength), Mathf.Sin(-i*arcLength), 0);
+				Vertex vertex = new Vertex(Mathf.Cos(i*arcLength), Mathf.Sin(i*arcLength), 0);
 				face.Vertices.Add(vertex);
 			}
 			Faces.Add(face);
+
+			Debug.Log ("Normal: "+face.Normal ());
+
 			s.Selected.Add (face);
 			return s;
 		}
@@ -126,10 +129,10 @@ namespace QuickMesh
 		}
 
 		public Selection Smooth(int iterations, float factor){
-			var edgeVertices = new EdgeFinder (Selected).EdgeVertices ();
+			var edgeVertices = new EdgeFinder (this).EdgeVertices ();
 			var tempVertices = new Dictionary<Vertex,Vector3> ();
 
-			var adjacency = new AdjacencyList (Selected);
+			var adjacency = new AdjacencyList (this);
 
 
 			foreach (Face f in Selected) {
@@ -166,40 +169,73 @@ namespace QuickMesh
 				return this;
 		}
 	
-		public Selection Filter(params String[] filters){
-			return Each ((s,f)=>{
-				foreach(String filter in filters){
+		public Selection Keep(params String[] filters){
+			return Filter((f) => {
+				foreach(string filter in filters){
 
 					if(filter.Contains("=")){
 						String[] keyval = filter.Split('=');
 						if(Attributes.ContainsKey(keyval[0]) 
 						   && Attributes[keyval[0]].ContainsKey(f)
 						   && Attributes[keyval[0]][f]==keyval[1]){
-							s.Selected.Add (f);
+							return true;
 						}
 					}else if(Attributes.ContainsKey(filter) 
 					         && Attributes[filter].ContainsKey(f)){
-						s.Selected.Add(f);
+						return true;
 					}
 				}
+				return false;
+
 			});
+		}
+
+		public Selection Filter(params String[] filters){
+			return Filter((f) => {
+				foreach(string filter in filters){
+					
+					if(filter.Contains("=")){
+						String[] keyval = filter.Split('=');
+						if(Attributes.ContainsKey(keyval[0]) 
+						   && Attributes[keyval[0]].ContainsKey(f)
+						   && Attributes[keyval[0]][f]==keyval[1]){
+							return false;
+						}
+					}else if(Attributes.ContainsKey(filter) 
+					         && Attributes[filter].ContainsKey(f)){
+						return false;
+					}
+				}
+				return true;
+
+			});
+		}
+
+		public delegate bool Predicate(Face f);
+
+		public Selection Filter(Predicate p){
+			return Each ((s,f) => {
+								if (p (f)) {
+										s.Selected.Add (f);
+								}
+						});
 		}
 
 		public Selection Inflate(float ammount){
 			var vertexNormals = new Dictionary<Vertex,List<Vector3>> ();
-			var edgeVertices = new EdgeFinder (Selected).EdgeVertices ();
+			var edgeVertices = new EdgeFinder (this).EdgeVertices ();
 
 
-			foreach (Face face in Selected){
-				var normal = face.Normal();
+			Each ((s,face) => {
+						var normal = face.Normal ();
 
-				foreach (Vertex v in face.Vertices){
-					if(!vertexNormals.ContainsKey(v)){
-						vertexNormals[v]=new List<Vector3>();
-					}
-					vertexNormals[v].Add (normal);
-				}
-			}
+						foreach (Vertex v in face.Vertices) {
+								if (!vertexNormals.ContainsKey (v)) {
+										vertexNormals [v] = new List<Vector3> ();
+								}
+								vertexNormals [v].Add (normal);
+						}
+				});
 			foreach (var kp in vertexNormals) {
 				Vertex v = kp.Key;
 				if(edgeVertices.Contains(v)){continue;}
@@ -214,18 +250,83 @@ namespace QuickMesh
 		}
 
 		public Selection Transform(Matrix4x4 transformation){
+			
+			Each ((s, face) => {
+								var normal = face.Normal ();
+								var barycenter = face.Barycenter ();
+								Quaternion direction = Quaternion.FromToRotation (normal, Face.DefaultNormal);
+								Quaternion orientation = Quaternion.FromToRotation (direction*face.Orientation, Face.DefaultOrientation);
+								
+								direction = orientation * direction;
 
+								foreach (Vertex v in face.Vertices) {
+										Vector3 temp = direction * (v.Position - barycenter);
+										temp = transformation.MultiplyPoint (temp);
+										v.Position = Quaternion.Inverse (direction) * temp + barycenter;
+								}
+								Quaternion rotation = QuaternionFromMatrix (transformation);
+
+								Vector3 newOrientation = (Quaternion.Inverse (direction) *
+										(rotation * Face.DefaultOrientation)).normalized;
+
+								if (newOrientation != Vector3.zero) {
+										face.Orientation = newOrientation;
+								}
+						});
+			return this;
 		}
+
+		public Selection Rotate(float x, float y,float z){
+			return Transform (Matrix4x4.TRS (
+				Vector3.zero, 
+				Quaternion.Euler (new Vector3 (x, y, z)), 
+				Vector3.one));
+		}
+
+
+		public Selection Scale(float x, float y,float z){
+			return Transform (Matrix4x4.TRS (
+				Vector3.zero, 
+				Quaternion.identity, 
+				new Vector3 (x, y, z)));
+		}
+
+		public Selection Scale(float s){
+			return Scale (s, s, s);
+		}
+
+		public Selection Translate(float x, float y, float z){
+			return Translate (new Vector3 (x, y, z));
+		}
+		public Selection Translate(Vector3 translation){
+			return Transform (Matrix4x4.TRS (
+				translation, 
+				Quaternion.identity, 
+				Vector3.one));
+		}
+
+		public static Quaternion QuaternionFromMatrix(Matrix4x4 m) { return Quaternion.LookRotation(m.GetColumn(2), m.GetColumn(1)); }
+
 
 		public void AddSelected(Face face){
 			Faces.Add (face);
 			Selected.Add (face);
 		}
 
+		public Selection SelectAll(){
+			var m = Make ();
+			foreach(Face f in Faces){
+				m.Selected.Add (f);
+			}
+			return m;
+		}
+
 		public Selection Each(Mapper m){
 			Selection s = Make ();
 			foreach (Face face in Selected) {
-				m(s,face);
+				if(Attr (face,"hidden")!="true"){
+					m(s,face);
+				}
 			}
 			return s;
 		}

@@ -8,11 +8,11 @@ namespace QuickMesh
 		public EdgeFinder ()
 		{
 		}
-		public EdgeFinder(List<Face> faces){
-			AddFaces(faces);
+		public EdgeFinder(Selection selection){
+			AddFaces(selection);
 		}
-		public void AddFaces(List<Face> faces){
-			foreach (Face face in faces) 
+		public void AddFaces(Selection selection){
+			selection.Each ((s,face)=> 
 			{
 				var vertexCount = face.Vertices.Count;
 				for (int i = 0; i< vertexCount; i++) {
@@ -20,7 +20,7 @@ namespace QuickMesh
 					Vertex next = face.Vertices [(i + 1) % vertexCount];
 					Add (current, next, Label (current, next) + 1);
 				}
-			}
+			});
 		}
 
 		public HashSet<Vertex> EdgeVertices(){
