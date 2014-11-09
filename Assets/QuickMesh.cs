@@ -383,10 +383,9 @@ namespace QuickMesh
 						return this;
 				}
 
-		public Mesh Finish(){
+		public List<Mesh> Finish(){
 
 
-			Mesh m = new Mesh ();
 
 			var smoothingGroups = new Dictionary<Vertex,Dictionary<int,Vertex>> ();
 			int reused = 0;
@@ -406,21 +405,17 @@ namespace QuickMesh
 						if(smoothingGroups.ContainsKey(v)){
 							if(smoothingGroups[v].ContainsKey(smoothing)){
 								face.Vertices[i]=smoothingGroups[v][smoothing];
-								reused++;
 							}else{
 								Vertex n = v.Clone();
 								face.Vertices[i]=n;
 								smoothingGroups[v][smoothing]=n;
 
-								newvert++;
 							}
 						}else{
 							smoothingGroups[v]=new Dictionary<int,Vertex>();
 							smoothingGroups[v][smoothing]=v;
-							newgroups++;
 						}
 					}else{
-						unsmoothed++;
 						face.Vertices[i]=v.Clone();
 					}
 				}
@@ -460,57 +455,107 @@ namespace QuickMesh
 				normalMap[v]=normal;
 				colorMap[v]=color;
 			}
+			
+			
+			var meshGroups = new Dictionary<Vertex,Dictionary<int,Vertex>> ();
+			
+			
+			foreach (Face face in Faces) {
+				if(!face.Visible)continue;
+				var mesh = face.MeshGroup;
+				
+				for(int i=0; i<face.Vertices.Count; i++){
+					Vertex v = face.Vertices[i];
+						if(meshGroups.ContainsKey(v)){
+							if(meshGroups[v].ContainsKey(mesh)){
+								face.Vertices[i]=meshGroups[v][mesh];
+								reused++;
+							}else{
+								Vertex n = v.Clone();
+								normalMap[n]=normalMap[v];
+								colorMap[n] = colorMap[v];
+								face.Vertices[i]=n;
+								meshGroups[v][mesh]=n;
+								
+								newvert++;
+							}
+						}else{
+							meshGroups[v]=new Dictionary<int,Vertex>();
+							meshGroups[v][mesh]=v;
+							newgroups++;
+						}
+				}
+			}
+			
+			
+			
+			
+			
 
 
-			var indices = new Dictionary<Vertex,int>();
+			var indices = new Dictionary<int,Dictionary<Vertex,int>>();
 			var totalReused = 0;
 			var totalCreated = 0;
 
-			var colours = new List<Color> ();
-			var normals = new List<Vector3> ();
-			var triangles = new List<int> ();
-			var vertices = new List<Vector3> ();
+			var colours = new Dictionary<int,List<Color>> ();
+			var normals = new Dictionary<int,List<Vector3>> ();
+			var triangles = new Dictionary<int,List<int>> ();
+			var vertices = new Dictionary<int,List<Vector3>> ();
+			
+			
 
 
 
 			foreach(Face face in Faces){
 				if(!face.Visible){continue;}
+				var mesh = face.MeshGroup;
 				var faceIndices = new List<int>();
+				
 				foreach(Vertex v in face.Vertices){
-					if(indices.ContainsKey(v)){
-						faceIndices.Add (indices[v]);
+					if(!indices.ContainsKey(mesh)){
+					indices[mesh]=new Dictionary<Vertex, int>();
+					colours[mesh]=new List<Color>();
+					normals[mesh] = new List<Vector3>();
+					triangles[mesh] = new List<int>();
+					vertices[mesh] = new List<Vector3>();
+					}
+					if(indices[mesh].ContainsKey(v)){
+						faceIndices.Add (indices[mesh][v]);
 						totalReused++;
 					}else{
-						faceIndices.Add (vertices.Count);
-						indices[v]=vertices.Count;
-						vertices.Add (v.Position);
-						colours.Add (colorMap[v]);
-						normals.Add(normalMap[v]);
+						faceIndices.Add (vertices[mesh].Count);
+						indices[mesh][v]=vertices[mesh].Count;
+						vertices[mesh].Add (v.Position);
+						colours[mesh].Add (colorMap[v]);
+						normals[mesh].Add(normalMap[v]);
 						totalCreated++;
 					}	
 				}
 				for (int i=0; i<faceIndices.Count-2; i++) {
-					triangles.Add(faceIndices[0]);
-					triangles.Add(faceIndices[i+1]);
-					triangles.Add(faceIndices[i+2]);
+					triangles[mesh].Add(faceIndices[0]);
+					triangles[mesh].Add(faceIndices[i+1]);
+					triangles[mesh].Add(faceIndices[i+2]);
 				}
 			}
 
 			Debug.Log ("Reused: " + reused + ", New Verts: " + newvert + ", New Group: " + newgroups+", Unsmoothed: "+unsmoothed);
 			Debug.Log ("Total Reused: " + totalReused + ", Total Created: " + totalCreated);
 
-			m.vertices = vertices.ToArray();
-			m.triangles = triangles.ToArray ();
-			m.colors = colours.ToArray ();
-			m.normals = normals.ToArray ();
+			List<Mesh> meshes = new List<Mesh>();
 
+			foreach(var mesh in indices.Keys){
+			
+				Mesh m = new Mesh ();
+				
+				m.vertices = vertices[mesh].ToArray();
+				m.triangles = triangles[mesh].ToArray ();
+				m.colors = colours[mesh].ToArray ();
+				m.normals = normals[mesh].ToArray ();
+				m.Optimize ();
+				meshes.Add (m);
+			}
 
-
-			m.Optimize ();
-
-			Debug.Log ("Verts: "+vertices.Count);
-
-			return m;
+			return meshes;
 		}
 	}
 }
