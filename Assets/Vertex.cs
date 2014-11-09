@@ -21,6 +21,9 @@ namespace QuickMesh
 			public Vertex(float x, float y, float z){
 				Position = new Vector3 (x, y, z);
 			}
+			public Vertex Clone(){
+				return new Vertex(this.Position);
+			}
 		}
 }
 

@@ -30,7 +30,7 @@ namespace QuickMesh
 			}
 			Faces.Add(face);
 
-			Debug.Log ("Normal: "+face.Normal ());
+			Debug.Log ("Normal: "+face.Normal);
 
 			s.Selected.Add (face);
 			return s;
@@ -69,7 +69,7 @@ namespace QuickMesh
 			return Each ((s,f) => {
 				f.Visible=false;
 
-				Vector3 extrusion = f.Normal()*distance;
+				Vector3 extrusion = f.Normal.normalized*distance;
 
 				Face cap = f.CloneProperties();
 
@@ -91,7 +91,8 @@ namespace QuickMesh
 					side.Vertices.Add (f.Vertices[i]);
 
 
-					side.Orientation = Vector3.Cross(side.Normal(), extrusion).normalized;
+					side.Normal = side.CalculateNormal();
+					side.Orientation = Vector3.Cross(side.Normal, extrusion).normalized;
 
 					s.AddSelected (side);
 				}
@@ -236,7 +237,7 @@ namespace QuickMesh
 
 
 			Each ((s,face) => {
-						var normal = face.Normal ();
+						var normal = face.CalculateNormal();
 
 						foreach (Vertex v in face.Vertices) {
 								if (!vertexNormals.ContainsKey (v)) {
@@ -261,30 +262,38 @@ namespace QuickMesh
 		public Selection Transform(Matrix4x4 transformation){
 			
 			Each ((s, face) => {
-								var normal = face.Normal ();
-								var barycenter = face.Barycenter ();
-								Quaternion direction = Quaternion.FromToRotation (normal, Face.DefaultNormal);
-								Quaternion orientation = Quaternion.FromToRotation (direction*face.Orientation, Face.DefaultOrientation);
 								
-								direction = orientation * direction;
-
-								foreach (Vertex v in face.Vertices) {
-										Vector3 temp = direction * (v.Position - barycenter);
-										temp = transformation.MultiplyPoint (temp);
-										v.Position = Quaternion.Inverse (direction) * temp + barycenter;
-								}
-								Quaternion rotation = QuaternionFromMatrix (transformation);
-
-								Vector3 newOrientation = (Quaternion.Inverse (direction) *
-										(rotation * Face.DefaultOrientation)).normalized;
-
-								if (newOrientation != Vector3.zero) {
-										face.Orientation = newOrientation;
-								}
-						});
+				var normal = face.CalculateNormal();
+				var barycenter = face.Barycenter ();
+				Quaternion direction = Quaternion.FromToRotation (normal, Face.DefaultNormal);
+				Quaternion orientation = Quaternion.FromToRotation (direction*face.Orientation, Face.DefaultOrientation);
+				
+				direction = orientation * direction;
+				
+				foreach (Vertex v in face.Vertices) {
+					Vector3 temp = direction * (v.Position - barycenter);
+					temp = transformation.MultiplyPoint (temp);
+					v.Position = Quaternion.Inverse (direction) * temp + barycenter;
+				}
+				Quaternion rotation = QuaternionFromMatrix (transformation);
+				
+				Vector3 newOrientation = (Quaternion.Inverse (direction) *
+				                          (rotation * Face.DefaultOrientation)).normalized;
+				
+				Vector3 newNormal = (Quaternion.Inverse (direction) *
+				                     (rotation * Face.DefaultNormal));
+				
+				if (newOrientation != Vector3.zero) {
+					face.Orientation = newOrientation;
+				}
+				
+				if(newNormal !=Vector3.zero){
+					face.Normal = newNormal;
+				}	
+			});
 			return this;
 		}
-
+		
 		public Selection Rotate(float x, float y,float z){
 			return Transform (Matrix4x4.TRS (
 				Vector3.zero, 
@@ -348,7 +357,7 @@ namespace QuickMesh
 			return this;
 		}
 
-		public Selection Color(Color32 color){
+		public Selection Colour(Color color){
 			foreach(Face f in Selected){
 				f.Color = color;
 			}
@@ -378,61 +387,125 @@ namespace QuickMesh
 
 
 			Mesh m = new Mesh ();
-			List<int> triangles = new List<int> ();
-			List<Vector3> vertices = new List<Vector3> ();
-			var smoothingGroups = new Dictionary<int,Dictionary<Vertex,int>> ();
+
+			var smoothingGroups = new Dictionary<Vertex,Dictionary<int,Vertex>> ();
 			int reused = 0;
 			int newvert = 0;
 			int newgroups = 0;
-
+			int unsmoothed = 0;
+			int original = 0;
 
 
 			foreach (Face face in Faces) {
+				if(!face.Visible)continue;
+				var smoothing = face.SmoothingGroup;
 
-				if(face.Visible){
-					int newIndex = vertices.Count;
-					var smoothing = face.SmoothingGroup;
-					List<int> indices = new List<int>();
-
-					foreach(Vertex v in face.Vertices){
-						if(smoothing!=0){
-							if(smoothingGroups.ContainsKey(smoothing)){
-								if(smoothingGroups[smoothing].ContainsKey(v)){
-									indices.Add(smoothingGroups[smoothing][v]);
-									reused++;
-								}else{
-									smoothingGroups[smoothing][v]=newIndex;
-									indices.Add (newIndex);
-									vertices.Add(v.Position);
-									newIndex++;
-									newvert++;
-								}
+				for(int i=0; i<face.Vertices.Count; i++){
+					Vertex v = face.Vertices[i];
+					if(smoothing!=0){
+						if(smoothingGroups.ContainsKey(v)){
+							if(smoothingGroups[v].ContainsKey(smoothing)){
+								face.Vertices[i]=smoothingGroups[v][smoothing];
+								reused++;
 							}else{
-								smoothingGroups[smoothing]=new Dictionary<Vertex,int>();
-								smoothingGroups[smoothing][v]=newIndex;
-								indices.Add (newIndex);
-								vertices.Add(v.Position);
-								newIndex++;
-								newgroups++;
+								Vertex n = v.Clone();
+								face.Vertices[i]=n;
+								smoothingGroups[v][smoothing]=n;
+
+								newvert++;
 							}
 						}else{
-						indices.Add (newIndex);
-						vertices.Add(v.Position);
-						newIndex++;
+							smoothingGroups[v]=new Dictionary<int,Vertex>();
+							smoothingGroups[v][smoothing]=v;
+							newgroups++;
 						}
-					}
-					for (int i=0; i<indices.Count-2; i++) {
-					
-						triangles.Add(indices[0]);
-						triangles.Add(indices[i+1]);
-						triangles.Add(indices[i+2]);
+					}else{
+						unsmoothed++;
+						face.Vertices[i]=v.Clone();
 					}
 				}
 			}
-			Debug.Log ("Reused: " + reused + ", New Verts: " + newvert + ", New Group: " + newgroups);
+
+
+			var colorLists = new Dictionary<Vertex,List<Color>> ();
+			var normalLists = new Dictionary<Vertex,List<Vector3>> ();
+
+			foreach (Face face in Faces) {
+				if(!face.Visible){continue;}
+				foreach (Vertex v in face.Vertices){
+					if(!colorLists.ContainsKey(v)){colorLists[v]=new List<Color>();}
+					if(!normalLists.ContainsKey(v)){normalLists[v]=new List<Vector3>();}
+					colorLists[v].Add(face.Color);
+					normalLists[v].Add (face.Normal);
+				}
+			}
+
+			var colorMap = new Dictionary<Vertex,Color> ();
+			var normalMap = new Dictionary<Vertex,Vector3> ();
+
+			foreach (var kp in normalLists) {
+				var v = kp.Key;
+
+				Vector3 normal = Vector3.zero;
+				Color color = Color.black;
+				foreach(var n in kp.Value){
+					normal += n;
+				}
+				foreach(var c in colorLists[v]){
+					color += c;
+				}
+				normal.Normalize();
+				color /= kp.Value.Count;
+
+				normalMap[v]=normal;
+				colorMap[v]=color;
+			}
+
+
+			var indices = new Dictionary<Vertex,int>();
+			var totalReused = 0;
+			var totalCreated = 0;
+
+			var colours = new List<Color> ();
+			var normals = new List<Vector3> ();
+			var triangles = new List<int> ();
+			var vertices = new List<Vector3> ();
+
+
+
+			foreach(Face face in Faces){
+				if(!face.Visible){continue;}
+				var faceIndices = new List<int>();
+				foreach(Vertex v in face.Vertices){
+					if(indices.ContainsKey(v)){
+						faceIndices.Add (indices[v]);
+						totalReused++;
+					}else{
+						faceIndices.Add (vertices.Count);
+						indices[v]=vertices.Count;
+						vertices.Add (v.Position);
+						colours.Add (colorMap[v]);
+						normals.Add(normalMap[v]);
+						totalCreated++;
+					}	
+				}
+				for (int i=0; i<faceIndices.Count-2; i++) {
+					triangles.Add(faceIndices[0]);
+					triangles.Add(faceIndices[i+1]);
+					triangles.Add(faceIndices[i+2]);
+				}
+			}
+
+			Debug.Log ("Reused: " + reused + ", New Verts: " + newvert + ", New Group: " + newgroups+", Unsmoothed: "+unsmoothed);
+			Debug.Log ("Total Reused: " + totalReused + ", Total Created: " + totalCreated);
+
 			m.vertices = vertices.ToArray();
-			m.triangles = triangles.ToArray ();	
-			m.RecalculateNormals ();
+			m.triangles = triangles.ToArray ();
+			m.colors = colours.ToArray ();
+			m.normals = normals.ToArray ();
+
+
+
 			m.Optimize ();
 
 			Debug.Log ("Verts: "+vertices.Count);

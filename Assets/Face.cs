@@ -13,13 +13,15 @@ namespace QuickMesh
 		public List<Vertex> Vertices = new List<Vertex>();
 
 		public Vector3 Orientation = DefaultOrientation;
-		public Color32 Color = new Color32(255,255,255,255);
+		public Vector3 Normal = DefaultNormal;
+		public Color Color = Color.white;
 		public int SmoothingGroup = 0;
 		public int MeshGroup = 0;
 		public bool Visible = true;
 
 		public Face CloneProperties(){
 			Face face = new Face ();
+			face.Normal = Normal;
 			face.Orientation = Orientation;
 			face.Color = Color;
 			face.SmoothingGroup = SmoothingGroup;
@@ -27,12 +29,14 @@ namespace QuickMesh
 			return face;
 		}
 
-		public Vector3 Normal(){
+		public Vector3 CalculateNormal(){
 			Vector3 p0 = Vertices[0].Position;
 			Vector3 p1 = Vertices[1].Position;
 			Vector3 p2 = Vertices[2].Position;
-			return Vector3.Cross((p2 - p1), (p0 - p1)).normalized;
+			return Vector3.Cross((p2 - p1), (p0 - p1));
 		}
+
+
 
 		public Vector3 Barycenter(){
 			var barycenter = Vector3.zero;
