@@ -294,6 +294,29 @@ namespace QuickMesh
 			return this;
 		}
 		
+		public Selection FloodSmooth(float threshold){
+			Each ((s,f)=>{
+				f.SmoothingGroup=0;
+			});
+			var faceFinder = new AdjacentFaces(this);
+			int newGroup = 0;
+			Each((s,f)=>{
+				if(f.SmoothingGroup==0){
+					f.SmoothingGroup = newGroup;
+					newGroup++;
+				}
+				foreach(Face adj in faceFinder.AdjacentTo(f)){
+					float angle;
+					Vector3 axis;
+					Quaternion.FromToRotation(f.Normal,adj.CalculateNormal()).ToAngleAxis(out angle,out axis);
+					if(angle<=threshold){
+						adj.SmoothingGroup=f.SmoothingGroup;
+					}
+				}
+			});
+			return this;
+		}
+		
 		public Selection Rotate(float x, float y,float z){
 			return Transform (Matrix4x4.TRS (
 				Vector3.zero, 

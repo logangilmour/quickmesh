@@ -33,7 +33,7 @@ namespace QuickMesh
 			Vector3 p0 = Vertices[0].Position;
 			Vector3 p1 = Vertices[1].Position;
 			Vector3 p2 = Vertices[2].Position;
-			return Vector3.Cross((p2 - p1), (p0 - p1));
+			return Vector3.Cross((p2 - p1), (p0 - p1)).normalized;
 		}
 
 
