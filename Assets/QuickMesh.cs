@@ -92,6 +92,7 @@ namespace QuickMesh
 
 
 					side.Normal = side.CalculateNormal();
+					
 					side.Orientation = Vector3.Cross(side.Normal, extrusion).normalized;
 
 					s.AddSelected (side);
@@ -330,6 +331,100 @@ namespace QuickMesh
 				}
 				s.AddSelected(face);
 			});
+		}
+		
+		//returns -1 when to the left, 1 to the right, and 0 for forward/backward
+		public static float Angle(Vector3 fwd, Vector3 targetDir, Vector3 up){
+			var perp = Vector3.Cross(fwd, targetDir);
+			var dir = Vector3.Dot(perp, up);
+			
+			var angle = Vector3.Angle(fwd,targetDir);
+			
+			if (dir < 0.0) {
+				return 360f-angle;
+			}
+			return angle;
+			
+		}
+		
+		public Selection Join(Selection other){
+			var s = Make ();
+			int min = Math.Min (Selected.Count, other.Selected.Count);
+			for(int i=0; i< min; i++){
+				Face A = Selected[i];
+				Face B = other.Selected[i];
+				A.Visible=false;
+				B.Visible=false;
+				if(B.Vertices.Count>A.Vertices.Count){
+					Face temp = A;
+					A = B;
+					B = temp;
+				}
+				var ABary = A.Barycenter();
+				var BBary = B.Barycenter();
+				var ANorm = A.CalculateNormal();
+				var BNorm = B.CalculateNormal();
+				var AQ = Quaternion.FromToRotation(ANorm,BBary-ABary);
+				var BQ = Quaternion.FromToRotation(BNorm,ABary-BBary);
+				
+				float angleOffset;
+				Vector3 dir;
+				Quaternion.FromToRotation(AQ*A.Orientation,BQ*B.Orientation).ToAngleAxis(out angleOffset,out dir);
+				List<float> AAngles = new List<float>();
+				List<float> BAngles = new List<float>();
+				
+				foreach(Vertex v in A.Vertices){
+					AAngles.Add (Angle (A.Orientation,v.Position - ABary,ANorm));
+				}
+				foreach(Vertex v in B.Vertices){
+					BAngles.Add (Angle (B.Orientation,v.Position - BBary,BNorm*-1));
+					
+				}
+				var edges = new List<Vertex>();
+				for(int ai=0; ai<AAngles.Count;ai++){
+					float angle = AAngles[ai];
+					Debug.Log ("checking vertex with angle "+angle);
+					
+					float best = 180f;
+					Vertex near = null; 
+					for(int bi=0; bi<BAngles.Count; bi++){
+						Debug.Log ("Comparing with "+BAngles[bi]);
+						var diff = BAngles[bi]-angle+angleOffset;
+						while(diff>180f){
+							diff-=360;
+						}
+						if(diff<0){
+							diff=Mathf.Abs(diff);
+						}
+						if(diff<best){
+							near = B.Vertices[bi];
+							best = diff;
+						}
+					}
+					edges.Add (A.Vertices[ai]);
+					edges.Add (near);
+				}
+				var edgeCount = edges.Count;
+				for(int e=0;e<edgeCount;e+=2){
+					Face side = A.CloneProperties();
+					
+					Attr (side,"side",(e/2).ToString());
+					
+					side.Vertices.Add (edges[(e+2)%edgeCount]);
+					side.Vertices.Add (edges[(e+3)%edgeCount]);
+					side.Vertices.Add (edges[e+1]);
+					side.Vertices.Add (edges[e]);
+					
+					
+					side.Normal = side.CalculateNormal();
+					//TODO fix this, as I'm pretty sure that just crossing the old direction with the new direction
+					//preserves nothing about the orientation. Extrusion has this problem too.
+					side.Orientation = Vector3.Cross(side.Normal, A.CalculateNormal()).normalized;
+					
+					s.AddSelected (side);
+				}
+			}
+			return s;
 		}
 		
 		public Selection RecalculateNormals(){

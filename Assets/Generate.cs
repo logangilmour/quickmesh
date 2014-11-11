@@ -8,8 +8,24 @@ public class Generate : MonoBehaviour {
 	void Start () {
 
 
-		Selection s = new Selection ().Circle (4).Rotate(-90,0,0).Colour(Color.green);
-		s=Tree(s);
+		Selection s = new Selection ().Circle (4).Rotate(-90,0,0).Colour(Color.green).Extrude(1);
+		var s2 = s.Keep("side=1").Colour (Color.black);
+		s = s.Keep ("side=3").Extrude (1).Keep ("cap");
+		for(int i=0; i<6;i++){
+			s=s.Extrude(1).Keep ("cap").Rotate (0,30,0);
+		}
+		s=s.Extrude(5).Keep("cap");
+		for(int i=0; i<4;i++){
+			s=s.Extrude(1).Keep ("cap").Rotate (0,30,20);
+		}
+		s.Colour(Color.red);//.Join();
+		
+		s.Join(s2);
+		
+		
+		
+		
+		//s=Tree(s);
 		/*
 		s=s=s.Scale(0.1f).Extrude(3).Filter ("cap");
 		for(int i=0; i<8; i++){
@@ -33,7 +49,9 @@ public class Generate : MonoBehaviour {
 		s.Flip();
 		*/
 		
-		s.Duplicate().Inflate(0.05f).Flip().SubMesh(1).Colour(Color.black);
+		
+		
+		//s.Duplicate().Inflate(0.05f).Flip().SubMesh(1).Colour(Color.black);
 		
 		float offset = 0;
 		foreach(Mesh mesh in s.Finish ()){
