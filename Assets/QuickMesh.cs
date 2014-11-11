@@ -281,7 +281,7 @@ namespace QuickMesh
 				                          (rotation * Face.DefaultOrientation)).normalized;
 				
 				Vector3 newNormal = (Quaternion.Inverse (direction) *
-				                     (rotation * Face.DefaultNormal));
+				                     (rotation * Face.DefaultNormal)).normalized;
 				
 				if (newOrientation != Vector3.zero) {
 					face.Orientation = newOrientation;
@@ -313,6 +313,36 @@ namespace QuickMesh
 						adj.SmoothingGroup=f.SmoothingGroup;
 					}
 				}
+			});
+			return this;
+		}
+		
+		public Selection Duplicate(){
+			var clones = new Dictionary<Vertex,Vertex>();
+			
+			return Each ((s,f)=>{
+				Face face = f.CloneProperties();
+				foreach(Vertex v in f.Vertices){
+					if(!clones.ContainsKey(v)){
+						clones[v]=v.Clone();
+					}
+					face.Vertices.Add (clones[v]);
+				}
+				s.AddSelected(face);
+			});
+		}
+		
+		public Selection RecalculateNormals(){
+			Each ((s,f)=>{
+				f.Normal = f.CalculateNormal();
+			});
+			return this;
+		}
+		
+		public Selection Flip(){
+			Each ((s,f)=>{
+				f.Vertices.Reverse();
+				f.Normal = (f.Normal*-1).normalized;
 			});
 			return this;
 		}
@@ -376,6 +406,13 @@ namespace QuickMesh
 		public Selection SmoothingGroup(int group){
 			foreach(Face f in Selected){
 				f.SmoothingGroup = group;
+			}
+			return this;
+		}
+		
+		public Selection SubMesh(int submesh){
+			foreach(Face f in Selected){
+				f.SubMesh = submesh;
 			}
 			return this;
 		}
@@ -522,7 +559,7 @@ namespace QuickMesh
 
 			var colours = new Dictionary<int,List<Color>> ();
 			var normals = new Dictionary<int,List<Vector3>> ();
-			var triangles = new Dictionary<int,List<int>> ();
+			var triangles = new Dictionary<int,Dictionary<int,List<int>>> ();
 			var vertices = new Dictionary<int,List<Vector3>> ();
 			
 			
@@ -539,7 +576,7 @@ namespace QuickMesh
 					indices[mesh]=new Dictionary<Vertex, int>();
 					colours[mesh]=new List<Color>();
 					normals[mesh] = new List<Vector3>();
-					triangles[mesh] = new List<int>();
+					triangles[mesh] = new Dictionary<int,List<int>>();
 					vertices[mesh] = new List<Vector3>();
 					}
 					if(indices[mesh].ContainsKey(v)){
@@ -554,10 +591,13 @@ namespace QuickMesh
 						totalCreated++;
 					}	
 				}
+				if(!triangles[mesh].ContainsKey(face.SubMesh)){
+					triangles[mesh][face.SubMesh] = new List<int>();
+				}
 				for (int i=0; i<faceIndices.Count-2; i++) {
-					triangles[mesh].Add(faceIndices[0]);
-					triangles[mesh].Add(faceIndices[i+1]);
-					triangles[mesh].Add(faceIndices[i+2]);
+					triangles[mesh][face.SubMesh].Add(faceIndices[0]);
+					triangles[mesh][face.SubMesh].Add(faceIndices[i+1]);
+					triangles[mesh][face.SubMesh].Add(faceIndices[i+2]);
 				}
 			}
 
@@ -571,7 +611,15 @@ namespace QuickMesh
 				Mesh m = new Mesh ();
 				
 				m.vertices = vertices[mesh].ToArray();
-				m.triangles = triangles[mesh].ToArray ();
+				int count = 0;
+				foreach(var key in triangles[mesh].Keys){
+					count = Math.Max(key,count);
+				}
+				count++;
+				m.subMeshCount = count;
+				foreach(var kp in triangles[mesh]){
+					m.SetTriangles(kp.Value.ToArray(),kp.Key);
+				}
 				m.colors = colours[mesh].ToArray ();
 				m.normals = normals[mesh].ToArray ();
 				m.Optimize ();

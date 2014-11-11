@@ -17,6 +17,7 @@ namespace QuickMesh
 		public Color Color = Color.white;
 		public int SmoothingGroup = 0;
 		public int MeshGroup = 0;
+		public int SubMesh = 0;
 		public bool Visible = true;
 
 		public Face CloneProperties(){
@@ -26,9 +27,10 @@ namespace QuickMesh
 			face.Color = Color;
 			face.SmoothingGroup = SmoothingGroup;
 			face.MeshGroup = MeshGroup;
+			face.SubMesh = SubMesh;
 			return face;
 		}
-
+		
 		public Vector3 CalculateNormal(){
 			Vector3 p0 = Vertices[0].Position;
 			Vector3 p1 = Vertices[1].Position;
