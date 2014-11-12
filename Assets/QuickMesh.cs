@@ -381,14 +381,17 @@ namespace QuickMesh
 					
 				}
 				var edges = new List<Vertex>();
+				var count = new Dictionary<Vertex,int>();
 				for(int ai=0; ai<AAngles.Count;ai++){
 					float angle = AAngles[ai];
 					Debug.Log ("checking vertex with angle "+angle);
 					
-					float best = 180f;
-					Vertex near = null; 
+					float nearness = 180f;
+					float next = 180f;
+					Vertex first = null; 
+					Vertex second = null;
 					for(int bi=0; bi<BAngles.Count; bi++){
-						Debug.Log ("Comparing with "+BAngles[bi]);
+						//Debug.Log ("Comparing with "+BAngles[bi]);
 						var diff = BAngles[bi]-angle+angleOffset;
 						while(diff>180f){
 							diff-=360;
@@ -396,13 +399,36 @@ namespace QuickMesh
 						if(diff<0){
 							diff=Mathf.Abs(diff);
 						}
-						if(diff<best){
-							near = B.Vertices[bi];
-							best = diff;
+						if(diff<nearness){
+							second = first;
+							first = B.Vertices[bi];
+							nearness = diff;
+						}else if(diff<next){
+							second = B.Vertices[bi];
+							next = diff;
 						}
 					}
+					
 					edges.Add (A.Vertices[ai]);
-					edges.Add (near);
+					if(!count.ContainsKey(first)){count[first]=0;}
+					
+					if(second!=null){
+					
+						if(!count.ContainsKey(second)){count[second]=0;}
+						Debug.Log ("Comparing "+count[first]+" with "+A.Vertices.Count/B.Vertices.Count);
+						if(count[first]<Mathf.Floor (A.Vertices.Count/B.Vertices.Count)){
+							edges.Add (first);
+							count[first]++;
+						}else{
+							edges.Add (second);
+							count[second]++;
+						}
+					}else{
+						edges.Add (first);
+						count[first]++;
+					}
+					
+					
 				}
 				var edgeCount = edges.Count;
 				for(int e=0;e<edgeCount;e+=2){

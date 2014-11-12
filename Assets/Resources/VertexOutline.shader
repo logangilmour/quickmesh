@@ -7,7 +7,7 @@
 		LOD 200
 		
 		CGPROGRAM
-		#pragma surface surf Lambert
+		#pragma surface surf NoLighting
 
 		struct Input {
 			float2 uv_MainTex;
@@ -20,6 +20,14 @@
 			o.Albedo = c.rgb;
 			o.Alpha = c.a;
 		}
+		
+		 fixed4 LightingNoLighting(SurfaceOutput s, fixed3 lightDir, fixed atten)
+     {
+         fixed4 c;
+         c.rgb = s.Albedo; 
+         c.a = s.Alpha;
+         return c;
+     }
 		ENDCG
 	} 
 	FallBack "Diffuse"
