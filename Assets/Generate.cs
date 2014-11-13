@@ -7,13 +7,15 @@ public class Generate : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 
-
+		
 		Selection s = new Selection ().Circle (4).Colour(Color.green);
+		/*
 		var s2 = s.Circle(8).Colour(Color.blue).Rotate (0,180,0).Translate (0,0,2);
 		s=s.Join(s2);
 		for(int i= 0; i< 8; i++){
 			s.Keep("side="+i).Colour(new Color(i/8f,i/8f,i/8f,1)).SubMesh(1);
 		}
+		*/
 		/*
 		
 		var s2 = s.Keep("side=1").Colour (Color.black);
@@ -33,40 +35,44 @@ public class Generate : MonoBehaviour {
 		
 		
 		//s=Tree(s);
-		/*
-		s=s=s.Scale(0.1f).Extrude(3).Filter ("cap");
+		
+		s=s.Scale(0.1f).Extrude(3).Filter ("cap");
 		for(int i=0; i<8; i++){
 			s=s.Extrude(3).Keep("cap").Extrude(0.1f);
 			s=i%2==0?s.Keep("side=2"):s.Keep("side=2");
 		}
 		s = s.SelectAll();
-		for (int i=0; i<2; i++) s = s.Subdivide ()
-			.Smooth (5, 0.5f).Inflate(0.1f);
+		
+		s = s.Subdivide ().Smooth (5, 0.5f).Inflate(0.1f);
+		
+		s=s.FloodSmooth(45);
+		
+		
+		s = s.Subdivide ().Smooth (5, 0.5f).Inflate(0.1f);
+		
 			
-			
+		
 		for (int i=0; i<10; i++) s = s.Smooth (1, 0.5f).Inflate(0.05f);
 		
 		
-		s=s.FloodSmooth(90);
 		
 		
-		s.RecalculateNormals();
-		s.SmoothingGroup(1);
+		s=s.RecalculateNormals();
 		
 		s.Flip();
-		*/
+		
 		
 		
 		
 		//s.Duplicate().Inflate(0.05f).Flip().SubMesh(1).Colour(Color.black);
 		
 		float offset = 0;
-		foreach(Mesh mesh in s.Finish ()){
 		
-			Material mat2 = (Material)Resources.Load("Outline", typeof(Material));
-			Material mat = (Material)Resources.Load("Brown", typeof(Material));
-			
-			
+		Material mat = (Material)Resources.Load("Brown", typeof(Material));
+		Material mat2 = (Material)Resources.Load("Brown", typeof(Material));
+		
+		
+		foreach(Mesh mesh in s.Finish ()){
 			GameObject plane = new GameObject("GenTree");
 			plane.transform.position = new Vector3(0,0,0);
 			
@@ -77,7 +83,7 @@ public class Generate : MonoBehaviour {
 			Material[] mats = new Material[2];
 			mats[0]=mat;
 			mats[1]=mat2;
-			renderer.materials= mats;
+			renderer.sharedMaterials= mats;
 				
 			//plane.transform.localScale = new Vector3(100,100,100);
 		}

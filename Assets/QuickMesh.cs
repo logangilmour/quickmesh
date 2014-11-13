@@ -296,24 +296,35 @@ namespace QuickMesh
 		}
 		
 		public Selection FloodSmooth(float threshold){
-			Each ((s,f)=>{
-				f.SmoothingGroup=0;
-			});
+			Color[] colors = {Color.red,Color.yellow,Color.green,Color.blue,Color.magenta,Color.cyan,Color.black,Color.white,Color.gray};
+			
+			var neighbours = new Stack<Face>();
+			
 			var faceFinder = new AdjacentFaces(this);
 			int newGroup = 0;
+			
+			foreach(var face in Selected){
+				face.SmoothingGroup=0;
+			}
+			
 			Each((s,f)=>{
-				if(f.SmoothingGroup==0){
-					f.SmoothingGroup = newGroup;
-					newGroup++;
-				}
-				foreach(Face adj in faceFinder.AdjacentTo(f)){
-					float angle;
-					Vector3 axis;
-					Quaternion.FromToRotation(f.Normal,adj.CalculateNormal()).ToAngleAxis(out angle,out axis);
-					if(angle<=threshold){
-						adj.SmoothingGroup=f.SmoothingGroup;
+				if(f.SmoothingGroup!=0){return;}
+				newGroup++;
+				neighbours.Push(f);
+				
+				while(neighbours.Count>0){
+					var cur = neighbours.Pop();
+					
+					cur.SmoothingGroup=newGroup;
+					foreach(Face adj in faceFinder.AdjacentTo(cur)){
+						if((Vector3.Angle(cur.CalculateNormal(),adj.CalculateNormal()) <= threshold) && adj.SmoothingGroup==0){
+							neighbours.Push(adj);
+							//adj.Color = colors[newGroup%colors.Length];
+							
+						}
 					}
 				}
+				
 			});
 			return this;
 		}
